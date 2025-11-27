@@ -3,6 +3,7 @@ import { getConfig } from './config/index.js';
 import { healthRouter } from './routes/health.js';
 import { newsRouter } from './routes/news.js';
 import { alertsRouter } from './routes/alerts.js';
+import { adminRouter } from './routes/admin.js';
 import { startScheduler } from './scheduler/index.js';
 
 const config = getConfig();
@@ -13,6 +14,7 @@ app.use(express.json());
 app.use('/health', healthRouter);
 app.use('/news', newsRouter);
 app.use('/alerts', alertsRouter);
+app.use('/admin', adminRouter);
 
 app.listen(config.port, () => {
   // eslint-disable-next-line no-console
