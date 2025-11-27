@@ -119,8 +119,15 @@ async function requestListener(req, res) {
 async function bootstrap() {
   await ensureDataFile();
   const intervals = scheduler.startSchedulers();
-  const server = http.createServer((req, res) => {
-    requestListener(req, res);
+  const server = http.createServer(async (req, res) => {
+    try {
+      await requestListener(req, res);
+    } catch (err) {
+      console.error('Unhandled request error', err);
+      if (!res.writableEnded) {
+        sendJson(res, 500, { message: 'Internal server error' });
+      }
+    }
   });
   server.listen(config.port, () => {
     console.log(`Server listening on port ${config.port}`);
