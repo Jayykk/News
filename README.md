@@ -34,11 +34,11 @@ POST /admin/re-analyze-news/:id
 
 These endpoints are wired through a layered architecture (routes → services → repositories) and currently use stubbed implementations for analysis and market data, as described in docs/architecture.md.
 
-Scheduler
+## Scheduler
 
-A simple scheduler inserts stub news and processes analysis/scoring automatically in the background.
-
-Set DISABLE_SCHEDULER=true in the environment to disable the scheduler if needed.
+- The scheduler runs with `node-cron` to insert stub news, analyze them, and generate alerts automatically.
+- Configure cadence with `SCHEDULER_CRON` (defaults to `*/5 * * * *`) and per-run stub count with `SCHEDULER_STUB_BATCH` (defaults to 2).
+- Set `DISABLE_SCHEDULER=true` to prevent the cron job from running (useful for local tests or one-off scripts).
 
 Build and Run
 ```bash

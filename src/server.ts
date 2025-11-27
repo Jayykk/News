@@ -3,6 +3,7 @@ import { getConfig } from './config/index.js';
 import { healthRouter } from './routes/health.js';
 import { newsRouter } from './routes/news.js';
 import { alertsRouter } from './routes/alerts.js';
+import { startScheduler } from './scheduler/index.js';
 
 const config = getConfig();
 const app = express();
@@ -16,4 +17,10 @@ app.use('/alerts', alertsRouter);
 app.listen(config.port, () => {
   // eslint-disable-next-line no-console
   console.log(`Server running in ${config.environment} mode on port ${config.port}`);
+});
+
+const schedulerControl = startScheduler();
+
+process.on('SIGINT', () => {
+  schedulerControl?.stop();
 });
