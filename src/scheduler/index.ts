@@ -17,12 +17,15 @@ export type SchedulerControl = {
 
 async function collectStubNews(batchSize: number) {
   const now = new Date();
-  const tasks: Promise<unknown>[] = [];
+  const created: unknown[] = [];
   for (let i = 0; i < batchSize; i += 1) {
     const symbol = STUB_SYMBOLS[Math.floor(Math.random() * STUB_SYMBOLS.length)];
     const timestamp = new Date(now.getTime() + i * 1000);
-    tasks.push(
-      rawNewsRepository.create({
+    // The JSON-backed repository performs a read-modify-write, so writes must be serialized
+    // to avoid clobbering concurrent updates when batch size > 1.
+    // eslint-disable-next-line no-await-in-loop
+    created.push(
+      await rawNewsRepository.create({
         source: 'scheduler',
         title: `Auto news for ${symbol} at ${timestamp.toISOString()}`,
         content: `${symbol} reports strong growth in latest quarter`,
@@ -35,7 +38,7 @@ async function collectStubNews(batchSize: number) {
       })
     );
   }
-  return Promise.all(tasks);
+  return created;
 }
 
 async function processSingle(rawNews: any) {
