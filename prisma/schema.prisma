@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model RawNews {
+  id           String   @id @default(uuid()) @db.Uuid
+  source       String
+  title        String
+  url          String?
+  content      String   @db.Text
+  publishedAt  DateTime?
+  receivedAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  analyses     NewsAnalysis[]
+}
+
+model NewsAnalysis {
+  id           String    @id @default(uuid()) @db.Uuid
+  rawNewsId    String    @unique @db.Uuid
+  summary      String?   @db.Text
+  sentiment    String?
+  sentimentScore Float?
+  tags         String[]
+  insights     String?   @db.Text
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  rawNews      RawNews   @relation(fields: [rawNewsId], references: [id])
+  signals      Signal[]
+}
+
+model Signal {
+  id             String   @id @default(uuid()) @db.Uuid
+  newsAnalysisId String   @db.Uuid
+  signalType     String
+  confidence     Float?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  analysis       NewsAnalysis @relation(fields: [newsAnalysisId], references: [id])
+  alerts         Alert[]
+}
+
+model Alert {
+  id         String   @id @default(uuid()) @db.Uuid
+  signalId   String   @db.Uuid
+  channel    String?
+  status     String   @default("pending")
+  message    String   @db.Text
+  createdAt  DateTime @default(now())
+  triggeredAt DateTime?
+  updatedAt  DateTime @updatedAt
+  signal     Signal   @relation(fields: [signalId], references: [id])
+}
+
+model SignalConfig {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @unique
+  description String?  @db.Text
+  parameters  Json
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model MarketSnapshot {
+  id          String   @id @default(uuid()) @db.Uuid
+  symbol      String
+  price       Decimal  @db.Decimal(18, 6)
+  changePct   Decimal? @db.Decimal(10, 4)
+  capturedAt  DateTime @default(now())
+  metadata    Json?
+}

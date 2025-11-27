@@ -1,41 +1,80 @@
-# News Service (Stub)
+# News Platform (Phase 1)
 
-This repository contains a lightweight stub implementation that follows the architecture in `docs/architecture.md` for Phase 1. It uses a simple JSON data store to avoid external dependencies while keeping the repository/service/service layering intact.
+A TypeScript + Express service scaffold for ingesting, analyzing, and alerting on news and market signals. The project follows the layered architecture described in `docs/architecture.md`.
 
-## Getting Started
+## Prerequisites
 
-Install dependencies: no external packages are required for this stub.
+- Node.js 18+
+- PostgreSQL 14+
+- Environment variable `DATABASE_URL` pointing to a PostgreSQL database  
+  (e.g., `postgresql://user:password@localhost:5432/news`)
 
-### Run migrations
+## Installation
 
 ```bash
-npm run migrate
+npm install
 ```
-
-This command initializes `data/db.json` and writes `migrations/001_init.sql` describing the schema.
-
-### Start the server
-
+##Development
 ```bash
 npm run dev
 ```
+The service starts on PORT (default 3000) and exposes the following endpoints:
 
-The service starts on `PORT` (default 3000) and exposes:
-- `GET /health`
-- `GET /news`
-- `GET /news/:id`
-- `GET /alerts`
-- `GET /alerts/:id`
-- `POST /admin/re-analyze-news/:id`
+GET /health
 
-### Scheduler
+GET /news
 
-A simple scheduler inserts stub news and processes analysis/scoring automatically. Set `DISABLE_SCHEDULER=true` to disable it.
+GET /news/:id
 
-### Testing
+GET /alerts
+
+GET /alerts/:id
+
+POST /admin/re-analyze-news/:id
+
+These endpoints are wired through a layered architecture (routes → services → repositories) and currently use stubbed implementations for analysis and market data, as described in docs/architecture.md.
+
+Scheduler
+
+A simple scheduler inserts stub news and processes analysis/scoring automatically in the background.
+
+Set DISABLE_SCHEDULER=true in the environment to disable the scheduler if needed.
+
+Build and Run
+```bash
+npm run build
+npm start
+```
+This compiles the TypeScript sources to dist/ and starts the compiled server.
+
+Database Migrations
+
+Prisma is configured for schema management and migrations under the prisma/ directory.
+
+Apply existing migrations (recommended for CI/CD or fresh environments):
+```bash
+npm run migrate
+```
+Develop and create a new migration after editing prisma/schema.prisma:
+```bash
+npm run migrate:dev
+```
+These commands require DATABASE_URL to be set and reachable by Prisma.
+
+Testing
 
 Run the built-in unit tests with:
-
 ```bash
 npm test
 ```
+Project Structure
+
+src/ – Express server entrypoint, routes, services, repositories, and config
+
+prisma/ – Prisma schema and SQL migrations for PostgreSQL
+
+docs/ – Architecture notes and design references
+
+tests/ – Unit tests for core services and API endpoints (may be expanded over time)
+
+

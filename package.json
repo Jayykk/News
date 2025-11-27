@@ -1,18 +1,25 @@
 {
-  "name": "news",
-  "version": "1.0.0",
-  "description": "Stub implementation for news-driven trading assistant",
-  "main": "src/server.js",
+  "name": "news-platform",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "node src/server.js",
-    "start": "node src/server.js",
-    "migrate": "node scripts/migrate.js",
-    "test": "node --test"
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "build": "tsc -p .",
+    "start": "node dist/server.js",
+    "migrate": "prisma migrate deploy",
+    "migrate:dev": "prisma migrate dev --name init"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "dependencies": {},
-  "devDependencies": {}
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "@prisma/client": "^5.15.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.9",
+    "@types/express": "^4.17.21",
+    "prisma": "^5.15.1",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.4.5"
+  }
 }
