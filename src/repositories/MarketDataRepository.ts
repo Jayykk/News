@@ -8,6 +8,9 @@ export class MarketDataRepository {
   }
 
   latest(): MarketDataPoint | undefined {
-    return this.history.at(-1);
+    if (this.history.length === 0) {
+      return undefined;
+    }
+    return this.history[this.history.length - 1];
   }
 }
