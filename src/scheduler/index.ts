@@ -2,8 +2,9 @@ import cron, { ScheduledTask } from 'node-cron';
 import { getConfig } from '../config/index.js';
 import { RawNewsRepository } from '../repositories/RawNewsRepository.js';
 import { NewsAnalysisService } from '../services/NewsAnalysisService.js';
-import { MarketDataService } from '../services/MarketDataService.js';
 import { SignalService } from '../services/SignalService.js';
+import { RealNewsCollector } from '../collectors/RealNewsCollector.js';
+import { INewsCollector } from '../collectors/INewsCollector.js';
 
 const STUB_SYMBOLS = ['AAPL', 'TSLA', 'GOOG', 'MSFT'];
 
@@ -14,8 +15,14 @@ export type SchedulerControl = {
 
 const rawNewsRepository = new RawNewsRepository();
 const newsAnalysisService = new NewsAnalysisService();
-const marketDataService = new MarketDataService();
 const signalService = new SignalService();
+
+function buildCollector(config = getConfig()): INewsCollector | null {
+  if (config.newsSourceMode === 'real') {
+    return new RealNewsCollector();
+  }
+  return null;
+}
 
 async function collectStubNews(batchSize: number) {
   const tasks: Promise<unknown>[] = [];
@@ -37,12 +44,22 @@ async function collectStubNews(batchSize: number) {
   return Promise.all(tasks);
 }
 
+async function collectRealNews(collector: INewsCollector) {
+  const latest = await rawNewsRepository.findLatestCollected();
+  const since = latest?.collectedAt ?? latest?.createdAt ?? null;
+  const items = await collector.fetchLatestNews(since);
+  for (const item of items) {
+    // eslint-disable-next-line no-await-in-loop
+    await rawNewsRepository.insertIfNotExists(item);
+  }
+  return items.length;
+}
+
 async function processRawNews(rawNewsId: string) {
   const raw = await rawNewsRepository.findById(rawNewsId);
   if (!raw) return null;
   const analysis = await newsAnalysisService.analyze(raw);
-  const [snapshot] = marketDataService.fetchSnapshot(raw.symbolsRaw ?? []);
-  const { signal } = await signalService.score(raw, analysis, snapshot);
+  const { signal } = await signalService.score(raw, analysis);
   return { analysis, signal };
 }
 
@@ -54,17 +71,23 @@ async function processPending() {
   }
 }
 
-async function runCycle(batchSize: number) {
-  const created = await collectStubNews(batchSize);
-  for (const raw of created) {
-    // eslint-disable-next-line no-await-in-loop
-    await processRawNews((raw as any).id);
+async function runCycle(batchSize: number, collector: INewsCollector | null) {
+  const config = getConfig();
+  if (config.newsSourceMode === 'real' && collector) {
+    await collectRealNews(collector);
+  } else {
+    const created = await collectStubNews(batchSize);
+    for (const raw of created) {
+      // eslint-disable-next-line no-await-in-loop
+      await processRawNews((raw as any).id);
+    }
   }
   await processPending();
 }
 
 export function startScheduler(): SchedulerControl | null {
   const config = getConfig();
+  const collector = buildCollector(config);
   if (config.disableScheduler) {
     // eslint-disable-next-line no-console
     console.log('Scheduler disabled via DISABLE_SCHEDULER');
@@ -76,14 +99,14 @@ export function startScheduler(): SchedulerControl | null {
 
   const task = cron.schedule(config.schedulerCron, async () => {
     try {
-      await runCycle(config.schedulerStubBatch);
+      await runCycle(config.schedulerStubBatch, collector);
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Scheduler cycle failed', error);
     }
   });
 
-  void runCycle(config.schedulerStubBatch).catch((error) => {
+  void runCycle(config.schedulerStubBatch, collector).catch((error) => {
     // eslint-disable-next-line no-console
     console.error('Initial scheduler cycle failed', error);
   });

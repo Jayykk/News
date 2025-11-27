@@ -1,8 +1,9 @@
 import { NewsAnalysis, RawNews, Signal, Prisma } from '@prisma/client';
-import { MarketSnapshot } from './MarketDataService.js';
+import { MarketSnapshot, MarketDataService } from './MarketDataService.js';
 import { SignalRepository } from '../repositories/SignalRepository.js';
 import { SignalConfigRepository } from '../repositories/SignalConfigRepository.js';
 import { AlertService } from './AlertService.js';
+import { getConfig } from '../config/index.js';
 
 export type ImpactBreakdown = {
   news_score: number;
@@ -15,7 +16,9 @@ export class SignalService {
   constructor(
     private readonly signalRepository = new SignalRepository(),
     private readonly signalConfigRepository = new SignalConfigRepository(),
-    private readonly alertService = new AlertService()
+    private readonly alertService = new AlertService(),
+    private readonly marketDataService = new MarketDataService(),
+    private readonly environment = getConfig()
   ) {}
 
   private scoreNewsComponent(analysis: NewsAnalysis): number {
@@ -58,9 +61,9 @@ export class SignalService {
     weights: Record<string, number>
   ): { score: number; breakdown: ImpactBreakdown } {
     const newsScore = this.scoreNewsComponent(analysis);
-    const retScore = this.normalizeMetric(marketSnapshot?.ret_1h, 0.1);
-    const volumeScore = this.normalizeMetric(marketSnapshot?.volume_ratio_1h, 3);
-    const volatilityScore = this.normalizeMetric(marketSnapshot?.volatility_ratio_1h, 3);
+    const retScore = this.normalizeMetric(marketSnapshot?.ret1h, 0.1);
+    const volumeScore = this.normalizeMetric(marketSnapshot?.volumeRatio1h, 3);
+    const volatilityScore = this.normalizeMetric(marketSnapshot?.volatilityRatio1h, 3);
 
     const breakdown: ImpactBreakdown = {
       news_score: newsScore,
@@ -82,9 +85,37 @@ export class SignalService {
     return score >= impactThreshold ? 'alerted' : 'no_alert';
   }
 
-  async score(rawNews: RawNews, analysis: NewsAnalysis, marketSnapshot?: MarketSnapshot): Promise<{ signal: Signal }> {
+  private pickAsset(symbols?: string[]): string | null {
+    if (!symbols?.length) return null;
+    return symbols[0];
+  }
+
+  private async resolveMarketSnapshot(
+    symbols: string[] | undefined,
+    assetType: 'stock' | 'crypto'
+  ): Promise<MarketSnapshot | null> {
+    const symbol = this.pickAsset(symbols);
+    if (!symbol) return null;
+
+    if (this.environment.marketDataMode === 'stub') {
+      return this.marketDataService.buildStubSnapshot(symbol, assetType);
+    }
+
+    const snapshot = await this.marketDataService.getLatestSnapshot(symbol, assetType);
+    if (snapshot) return snapshot;
+
+    // fallback to stub generation to avoid failing the pipeline when real data is missing
+    return this.marketDataService.buildStubSnapshot(symbol, assetType);
+  }
+
+  async score(
+    rawNews: RawNews,
+    analysis: NewsAnalysis,
+    assetType: 'stock' | 'crypto' = 'stock'
+  ): Promise<{ signal: Signal }> {
     const config = await this.signalConfigRepository.getActiveConfig();
-    const { score, breakdown } = this.calculateImpactScore(analysis, marketSnapshot, config.weights as Record<string, number>);
+    const marketSnapshot = await this.resolveMarketSnapshot(rawNews.symbolsRaw, assetType);
+    const { score, breakdown } = this.calculateImpactScore(analysis, marketSnapshot ?? undefined, config.weights as Record<string, number>);
     const impactThreshold = (config.thresholds as Record<string, number>).impact_alert ?? 0.6;
     const status = this.determineStatus(score, impactThreshold);
 
