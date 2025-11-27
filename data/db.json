@@ -1,0 +1,27 @@
+{
+  "raw_news": [
+    {
+      "id": "8553f0f2-bbff-4775-80fe-9e99ad813098",
+      "ingest_status": "ingested",
+      "created_at": "2025-11-27T04:38:13.860Z",
+      "updated_at": "2025-11-27T04:38:13.860Z",
+      "source": "test",
+      "title": "Test headline",
+      "content": "Just a test",
+      "url": "http://example.com",
+      "published_at": "2025-11-27T04:38:13.852Z",
+      "collected_at": "2025-11-27T04:38:13.852Z",
+      "language": "en",
+      "symbols_raw": [
+        "TST"
+      ],
+      "hash": "test-1764218293852"
+    }
+  ],
+  "news_analysis": [],
+  "market_snapshots": [],
+  "signals": [],
+  "alerts": [],
+  "signal_configs": [],
+  "proposed_orders": []
+}
