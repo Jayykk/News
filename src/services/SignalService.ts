@@ -20,13 +20,29 @@ export class SignalService {
 
   private scoreNewsComponent(analysis: NewsAnalysis): number {
     let score = analysis.rawConfidence ?? 0.4;
-    if (analysis.isRumor) score *= 0.5;
-    if (analysis.eventType === 'hack' || analysis.sentiment?.includes('negative')) {
-      score += 0.2;
+
+    if (analysis.impactMagnitude === 'major') score += 0.25;
+    else if (analysis.impactMagnitude === 'moderate') score += 0.1;
+
+    if (analysis.impactPolarity === 'bullish' || analysis.impactPolarity === 'bearish') {
+      score += 0.05;
     }
-    if (analysis.isConfirmedByOfficial) {
+
+    if (analysis.veracityLevel === 'official') score += 0.2;
+    else if (analysis.veracityLevel === 'multi_source') score += 0.1;
+    else if (analysis.veracityLevel === 'rumor' || analysis.isRumor) score -= 0.2;
+
+    if (analysis.predictedDirection === 'uncertain') {
+      score -= 0.05;
+    }
+
+    if (analysis.eventType === 'hack' || analysis.sentiment?.includes('negative')) {
       score += 0.1;
     }
+    if (analysis.isConfirmedByOfficial) {
+      score += 0.05;
+    }
+
     return Math.min(Math.max(score, 0), 1);
   }
 

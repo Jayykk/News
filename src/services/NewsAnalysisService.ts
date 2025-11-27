@@ -1,6 +1,7 @@
 import { RawNews, NewsAnalysis, Prisma } from '@prisma/client';
 import { NewsAnalysisRepository } from '../repositories/NewsAnalysisRepository.js';
 import { RawNewsRepository } from '../repositories/RawNewsRepository.js';
+import { AiNewsAnalyzer, AiNewsAnalysisInput } from './AiNewsAnalyzer.js';
 
 export type AnalysisResultInput = Prisma.NewsAnalysisCreateWithoutRawNewsInput;
 
@@ -44,7 +45,8 @@ const RUMOR_KEYWORDS = ['rumor', 'unconfirmed', '傳言', '傳聞', 'rumour'];
 export class NewsAnalysisService {
   constructor(
     private readonly analysisRepository = new NewsAnalysisRepository(),
-    private readonly rawNewsRepository = new RawNewsRepository()
+    private readonly rawNewsRepository = new RawNewsRepository(),
+    private readonly aiAnalyzer = new AiNewsAnalyzer()
   ) {}
 
   private detectRule(text: string): Rule | null {
@@ -67,7 +69,7 @@ export class NewsAnalysisService {
     return RUMOR_KEYWORDS.some((kw) => lower.includes(kw));
   }
 
-  private buildAnalysis(rawNews: RawNews): AnalysisResultInput {
+  private buildRuleBasedAnalysis(rawNews: RawNews): AnalysisResultInput {
     const text = `${rawNews.title} ${rawNews.content}`;
     const matchedRule = this.detectRule(text);
     const sentiment = this.detectSentiment(matchedRule);
@@ -95,7 +97,46 @@ export class NewsAnalysisService {
   }
 
   async analyze(rawNews: RawNews): Promise<NewsAnalysis> {
-    const analysisInput = this.buildAnalysis(rawNews);
+    const ruleBased = this.buildRuleBasedAnalysis(rawNews);
+    const aiInput: AiNewsAnalysisInput = {
+      newsId: rawNews.id,
+      title: rawNews.title,
+      content: rawNews.content,
+      source: rawNews.source,
+      publishedAt: rawNews.publishedAt,
+      assets: (ruleBased.assets as Prisma.InputJsonValue | null | undefined) ?? null,
+      eventType: ruleBased.eventType,
+      sentiment: ruleBased.sentiment,
+    };
+
+    const aiResult = await this.aiAnalyzer.analyze(aiInput);
+    let ruleKeyReasons: string[] = [];
+    if (Array.isArray(ruleBased.keyReasons)) {
+      ruleKeyReasons = ruleBased.keyReasons;
+    } else if (
+      ruleBased.keyReasons &&
+      typeof ruleBased.keyReasons === 'object' &&
+      'set' in ruleBased.keyReasons &&
+      Array.isArray((ruleBased.keyReasons as { set: string[] }).set)
+    ) {
+      ruleKeyReasons = (ruleBased.keyReasons as { set: string[] }).set;
+    }
+    const keyReasons = Array.from(new Set([...(ruleKeyReasons ?? []), ...(aiResult.keyReasons ?? [])]));
+
+    const analysisInput: AnalysisResultInput = {
+      ...ruleBased,
+      keyReasons,
+      veracityLevel: aiResult.veracityLevel,
+      veracityConfidence: aiResult.veracityConfidence,
+      impactPolarity: aiResult.impactPolarity,
+      impactMagnitude: aiResult.impactMagnitude,
+      predictedDirection: aiResult.predictedDirection,
+      predictedHorizon: aiResult.predictedHorizon,
+      predictedAbsMove1h: aiResult.predictedAbsMove1h ?? undefined,
+      aiModel: aiResult.aiModel,
+      aiRaw: aiResult.aiRaw,
+    };
+
     return this.analysisRepository.upsert(rawNews.id, analysisInput);
   }
 
