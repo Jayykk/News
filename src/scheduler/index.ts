@@ -1,12 +1,9 @@
 import cron, { ScheduledTask } from 'node-cron';
 import { getConfig } from '../config/index.js';
-import * as rawNewsRepository from '../repositories/rawNewsRepository.js';
-import * as newsAnalysisRepository from '../repositories/newsAnalysisRepository.js';
-import * as alertRepository from '../repositories/alertRepository.js';
-import * as analysisService from '../services/newsAnalysisService.js';
-import * as marketDataService from '../services/marketDataService.js';
-import * as signalService from '../services/signalService.js';
-import * as alertService from '../services/alertService.js';
+import { RawNewsRepository } from '../repositories/RawNewsRepository.js';
+import { NewsAnalysisService } from '../services/NewsAnalysisService.js';
+import { MarketDataService } from '../services/MarketDataService.js';
+import { SignalService } from '../services/SignalService.js';
 
 const STUB_SYMBOLS = ['AAPL', 'TSLA', 'GOOG', 'MSFT'];
 
@@ -15,47 +12,45 @@ export type SchedulerControl = {
   task: ScheduledTask;
 };
 
+const rawNewsRepository = new RawNewsRepository();
+const newsAnalysisService = new NewsAnalysisService();
+const marketDataService = new MarketDataService();
+const signalService = new SignalService();
+
 async function collectStubNews(batchSize: number) {
-  const now = new Date();
   const tasks: Promise<unknown>[] = [];
   for (let i = 0; i < batchSize; i += 1) {
     const symbol = STUB_SYMBOLS[Math.floor(Math.random() * STUB_SYMBOLS.length)];
-    const timestamp = new Date(now.getTime() + i * 1000);
+    const now = new Date();
     tasks.push(
       rawNewsRepository.create({
         source: 'scheduler',
-        title: `Auto news for ${symbol} at ${timestamp.toISOString()}`,
+        title: `Auto news for ${symbol} at ${now.toISOString()}`,
         content: `${symbol} reports strong growth in latest quarter`,
         url: 'https://example.com/news',
-        published_at: timestamp.toISOString(),
-        collected_at: timestamp.toISOString(),
+        publishedAt: now,
         language: 'en',
-        symbols_raw: [symbol],
-        hash: `${symbol}-${timestamp.getTime()}`
+        symbolsRaw: [symbol],
       })
     );
   }
   return Promise.all(tasks);
 }
 
-async function processSingle(rawNews: any) {
-  const existingAnalysis = await newsAnalysisRepository.findByRawNewsId(rawNews.id);
-  const analysis = existingAnalysis ?? (await newsAnalysisRepository.upsert(rawNews.id, await analysisService.analyze(rawNews)));
-  const snapshots = await marketDataService.fetchSnapshot(rawNews.symbols_raw || []);
-  const snapshot = snapshots[0] || null;
-  const { signal } = await signalService.score(rawNews, analysis, snapshot);
-  const alert = await alertService.createAlert(rawNews, analysis, signal);
-  return { analysis, signal, alert };
+async function processRawNews(rawNewsId: string) {
+  const raw = await rawNewsRepository.findById(rawNewsId);
+  if (!raw) return null;
+  const analysis = await newsAnalysisService.analyze(raw);
+  const [snapshot] = marketDataService.fetchSnapshot(raw.symbolsRaw ?? []);
+  const { signal } = await signalService.score(raw, analysis, snapshot);
+  return { analysis, signal };
 }
 
 async function processPending() {
-  const rawItems = await rawNewsRepository.listAll();
-  const existingAlerts = await alertRepository.list({ limit: 1000 });
-  for (const raw of rawItems) {
-    const alreadyAlerted = existingAlerts.some((a: any) => a.raw_news_id === raw.id);
-    if (alreadyAlerted) continue;
+  const pending = await rawNewsRepository.listUnanalysed(50);
+  for (const raw of pending) {
     // eslint-disable-next-line no-await-in-loop
-    await processSingle(raw);
+    await processRawNews(raw.id);
   }
 }
 
@@ -63,7 +58,7 @@ async function runCycle(batchSize: number) {
   const created = await collectStubNews(batchSize);
   for (const raw of created) {
     // eslint-disable-next-line no-await-in-loop
-    await processSingle(raw);
+    await processRawNews((raw as any).id);
   }
   await processPending();
 }
@@ -88,7 +83,6 @@ export function startScheduler(): SchedulerControl | null {
     }
   });
 
-  // Kick off one immediate run
   void runCycle(config.schedulerStubBatch).catch((error) => {
     // eslint-disable-next-line no-console
     console.error('Initial scheduler cycle failed', error);
@@ -96,6 +90,6 @@ export function startScheduler(): SchedulerControl | null {
 
   return {
     stop: () => task.stop(),
-    task
+    task,
   };
 }
