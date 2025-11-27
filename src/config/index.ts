@@ -8,6 +8,7 @@ export type AppConfig = {
   schedulerCron: string;
   schedulerStubBatch: number;
   disableScheduler: boolean;
+  signalConfigPath: string;
 };
 
 const parseNumber = (value: string | undefined, fallback: number): number => {
@@ -21,4 +22,5 @@ export const getConfig = (): AppConfig => ({
   schedulerCron: process.env.SCHEDULER_CRON ?? '*/5 * * * *',
   schedulerStubBatch: parseNumber(process.env.SCHEDULER_STUB_BATCH, 2),
   disableScheduler: process.env.DISABLE_SCHEDULER === 'true',
+  signalConfigPath: process.env.SIGNAL_CONFIG_PATH ?? 'configs/signal_configs/default.json',
 });

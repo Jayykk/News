@@ -1,0 +1,14 @@
+{
+  "name": "default",
+  "description": "Baseline weights for combining news analysis and market data",
+  "weights": {
+    "w_news": 0.4,
+    "w_ret_1h": 0.2,
+    "w_volume_1h": 0.2,
+    "w_volatility_1h": 0.2
+  },
+  "thresholds": {
+    "impact_alert": 0.6,
+    "severe_alert": 0.8
+  }
+}

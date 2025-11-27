@@ -6,8 +6,9 @@ A TypeScript + Express service scaffold for ingesting, analyzing, and alerting o
 
 - Node.js 18+
 - PostgreSQL 14+
-- Environment variable `DATABASE_URL` pointing to a PostgreSQL database  
+- Environment variable `DATABASE_URL` pointing to a PostgreSQL database
   (e.g., `postgresql://user:password@localhost:5432/news`)
+- Optional `SIGNAL_CONFIG_PATH` to override the default `configs/signal_configs/default.json`
 
 ## Installation
 
@@ -32,7 +33,7 @@ GET /alerts/:id
 
 POST /admin/re-analyze-news/:id
 
-These endpoints are wired through a layered architecture (routes → services → repositories) and currently use stubbed implementations for analysis and market data, as described in docs/architecture.md.
+These endpoints are wired through a layered architecture (routes → services → repositories) and use rule-based analysis plus configurable signal/alert generation as described in docs/architecture.md. The news and alert endpoints return raw news along with the latest analysis, associated signals, and alert summaries. Signal weights and thresholds are loaded from `configs/signal_configs` (or the path provided via `SIGNAL_CONFIG_PATH`).
 
 ## Scheduler
 
