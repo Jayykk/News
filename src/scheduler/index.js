@@ -50,9 +50,12 @@ function startSchedulers() {
   if (config.disableScheduler) {
     return [];
   }
-  const collectInterval = setInterval(async () => {
-    const news = await collectStubNews();
-    await processAnalysis(news);
+  const collectInterval = setInterval(() => {
+    collectStubNews()
+      .then((news) => processAnalysis(news))
+      .catch((err) => {
+        console.error('Scheduler interval error', err);
+      });
   }, config.schedulerIntervalMs);
 
   // Kick off initial run
