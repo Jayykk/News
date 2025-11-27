@@ -68,6 +68,19 @@ Run the built-in unit tests with:
 ```bash
 npm test
 ```
+
+## Frontend (Trader Ops Room)
+
+A React + TypeScript single-page app lives in `web/` and surfaces the sentiment/truthfulness dashboard under `/app` when built.
+
+```bash
+cd web
+npm install # install UI dependencies
+npm run dev # start Vite dev server (defaults to http://localhost:5173/app)
+npm run build # emit static assets into web/dist served by the Express app
+```
+
+After running `npm run build` inside `web/`, restarting the Express server will serve the compiled SPA at `http://localhost:3000/app` (or your configured `PORT`).
 Project Structure
 
 src/ – Express server entrypoint, routes, services, repositories, and config
