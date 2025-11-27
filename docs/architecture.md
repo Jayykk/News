@@ -163,3 +163,50 @@ API Layer
 - 先以單體服務 + 明確分層，後續若來源/流量增長，可將 Collector/Analysis/Signal 拆為獨立服務並以佇列 (Kafka/Redis Stream) 解耦。
 - 排程 + Idempotent 設計可避免重複處理；hash 去重必須穩定。
 - 所有推播附上 disclaimer：僅供資訊參考，非投資建議；自動下單需完整風控與回測。
+
+## Phase 1 Implementation Checklist
+
+- [ ] 建立 Node.js + TypeScript 專案骨架（Express/Fastify），包含：
+  - [ ] src/server.ts，提供 GET /health
+  - [ ] routes：/health, /news, /alerts
+  - [ ] 基本 config 模組（讀取環境變數）
+
+- [ ] 建立 PostgreSQL 資料表與 migration：
+  - [ ] raw_news
+  - [ ] news_analysis
+  - [ ] market_snapshots（可選）
+  - [ ] signals
+  - [ ] alerts
+  - [ ] signal_configs
+  - [ ] proposed_orders（Phase 2 預留）
+
+- [ ] 實作 Repository layer：
+  - [ ] RawNewsRepository
+  - [ ] NewsAnalysisRepository
+  - [ ] SignalRepository
+  - [ ] AlertRepository
+  - [ ] ConfigRepository / SignalConfigRepository
+
+- [ ] 實作 Service stub：
+  - [ ] NewsAnalysisService（先用關鍵字 / 假資料）
+  - [ ] MarketDataService（回傳假行情）
+  - [ ] SignalService（計算 impact_score，從 config 讀權重/門檻）
+  - [ ] AlertService（寫入 alerts，組簡單 summary + disclaimer）
+
+- [ ] 實作基本 API：
+  - [ ] GET /health
+  - [ ] GET /news（分頁 + 可選 symbol 篩選，回 raw_news + analysis 摘要）
+  - [ ] GET /news/:id
+  - [ ] GET /alerts
+  - [ ] GET /alerts/:id
+  - [ ] POST /admin/re-analyze-news/:id
+
+- [ ] 實作 Scheduler：
+  - [ ] 排程 Collector stub：每 X 分鐘寫幾筆假 RawNews 進 DB
+  - [ ] 排程分析：對未分析的 raw_news 呼叫 NewsAnalysisService
+  - [ ] 排程打分 + 產生 alerts
+
+- [ ] 加入至少 3 個 unit tests：
+  - [ ] 測試 SignalService 的 impact_score 計算
+  - [ ] 測試 NewsAnalysisService 的基本分類規則
+  - [ ] 測試 GET /health 回 200
