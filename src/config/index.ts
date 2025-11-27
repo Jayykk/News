@@ -9,6 +9,14 @@ export type AppConfig = {
   schedulerStubBatch: number;
   disableScheduler: boolean;
   signalConfigPath: string;
+  newsSourceMode: 'stub' | 'real';
+  marketDataMode: 'stub' | 'real';
+  newsApiUrl?: string;
+  newsApiKey?: string;
+  newsApiSourceName?: string;
+  newsLookbackMinutes: number;
+  marketDataApiUrl?: string;
+  marketDataApiKey?: string;
 };
 
 const parseNumber = (value: string | undefined, fallback: number): number => {
@@ -23,4 +31,12 @@ export const getConfig = (): AppConfig => ({
   schedulerStubBatch: parseNumber(process.env.SCHEDULER_STUB_BATCH, 2),
   disableScheduler: process.env.DISABLE_SCHEDULER === 'true',
   signalConfigPath: process.env.SIGNAL_CONFIG_PATH ?? 'configs/signal_configs/default.json',
+  newsSourceMode: (process.env.NEWS_SOURCE_MODE as 'stub' | 'real') ?? 'stub',
+  marketDataMode: (process.env.MARKET_DATA_MODE as 'stub' | 'real') ?? 'stub',
+  newsApiUrl: process.env.NEWS_API_URL,
+  newsApiKey: process.env.NEWS_API_KEY,
+  newsApiSourceName: process.env.NEWS_API_SOURCE_NAME,
+  newsLookbackMinutes: parseNumber(process.env.NEWS_LOOKBACK_MINUTES, 60),
+  marketDataApiUrl: process.env.MARKET_DATA_API_URL,
+  marketDataApiKey: process.env.MARKET_DATA_API_KEY,
 });
