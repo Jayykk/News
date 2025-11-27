@@ -28,3 +28,16 @@ The Phase 1 scope is a single service that exposes HTTP endpoints for health che
 - Replace in-memory repositories with persistent storage.
 - Add validation and authentication layers as needed.
 - Expand service logic with real external integrations.
+
+## Database Design (Phase 1)
+
+PostgreSQL is used for persistence, with Prisma managing migrations and schema evolution. The initial tables are:
+
+- **raw_news**: Stores ingested raw articles (`id`, `source`, `title`, `url`, `content`, `published_at`, timestamps).
+- **news_analysis**: Stores summaries and signals derived from raw news (`id`, `raw_news_id`, `summary`, `sentiment`, `sentiment_score`, `tags`, `insights`, timestamps).
+- **signals**: Trading or alerting signals tied to analyses (`id`, `news_analysis_id`, `signal_type`, `confidence`, `metadata`, timestamps).
+- **alerts**: Notifications emitted from signals (`id`, `signal_id`, `channel`, `status`, `message`, `triggered_at`, timestamps).
+- **signal_configs**: Configuration for signal generation (`id`, `name`, `description`, `parameters` JSON, `is_active`, timestamps).
+- **market_snapshots** (optional): Time-series market metrics for context (`id`, `symbol`, `price`, `change_pct`, `captured_at`, `metadata`).
+
+Foreign keys enforce relationships between raw news, analyses, signals, and alerts. Timestamps capture creation and update moments for auditability.
