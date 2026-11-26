@@ -41,6 +41,18 @@ These endpoints are wired through a layered architecture (routes â†’ services â†
 - Configure cadence with `SCHEDULER_CRON` (defaults to `*/5 * * * *`) and per-run stub count with `SCHEDULER_STUB_BATCH` (defaults to 2).
 - Set `DISABLE_SCHEDULER=true` to prevent the cron job from running (useful for local tests or one-off scripts).
 
+## Data source modes
+
+- `NEWS_SOURCE_MODE`: `stub` (default) uses the built-in fake news insertion; `real` enables `RealNewsCollector` which pulls from `NEWS_API_URL` and persists deduped entries into `raw_news`.
+- `MARKET_DATA_MODE`: `stub` (default) keeps using the synthetic market data logic inside `SignalService`; `real` asks `MarketDataService` to call `MARKET_DATA_API_URL` for live snapshots, but will gracefully fall back to stub values if the API is missing or errors.
+
+### Environment variables
+
+- `NEWS_SOURCE_MODE`, `NEWS_API_URL`, `NEWS_API_KEY`, `NEWS_API_SOURCE_NAME`, `NEWS_LOOKBACK_MINUTES`
+- `MARKET_DATA_MODE`, `MARKET_DATA_API_URL`, `MARKET_DATA_API_KEY`
+
+Local testing can rely solely on `DATABASE_URL`; without any NEWS/MARKET variables the system stays in stub mode so `npm run dev` and `/health` work out of the box. Supply the NEWS_* and MARKET_DATA_* variables only when you want to exercise the real collector and market data paths.
+
 Build and Run
 ```bash
 npm run build

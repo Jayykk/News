@@ -17,6 +17,7 @@ model RawNews {
   collectedAt   DateTime       @default(now())
   language      String?
   symbolsRaw    String[]       @db.Text
+  hash          String?        @unique
   ingestStatus  String         @default("ingested")
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt

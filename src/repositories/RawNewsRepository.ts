@@ -1,5 +1,7 @@
 import { RawNews, Prisma, NewsAnalysis } from '@prisma/client';
 import prisma from '../db/client.js';
+import { NewsItemInput } from '../collectors/INewsCollector.js';
+import { sha256 } from '../utils/hash.js';
 
 export type RawNewsListParams = {
   symbol?: string;
@@ -13,6 +15,31 @@ export type RawNewsListParams = {
 export class RawNewsRepository {
   async create(data: Prisma.RawNewsCreateInput): Promise<RawNews> {
     return prisma.rawNews.create({ data });
+  }
+
+  async findByHash(hash: string): Promise<RawNews | null> {
+    return prisma.rawNews.findFirst({ where: { hash } });
+  }
+
+  private buildHash(input: NewsItemInput): string {
+    return sha256(`${input.source}|${input.title}|${input.publishedAt.toISOString()}`);
+  }
+
+  async insertIfNotExists(input: NewsItemInput): Promise<RawNews> {
+    const hash = this.buildHash(input);
+    const existing = await this.findByHash(hash);
+    if (existing) return existing;
+
+    return this.create({
+      source: input.source,
+      title: input.title,
+      content: input.content,
+      url: input.url,
+      publishedAt: input.publishedAt,
+      symbolsRaw: input.symbolsRaw ?? [],
+      language: input.language,
+      hash,
+    });
   }
 
   async list(params: RawNewsListParams = {}): Promise<RawNews[]> {
@@ -63,6 +90,12 @@ export class RawNewsRepository {
 
   async findById(id: string): Promise<RawNews | null> {
     return prisma.rawNews.findUnique({ where: { id } });
+  }
+
+  async findLatestCollected(): Promise<RawNews | null> {
+    return prisma.rawNews.findFirst({
+      orderBy: [{ collectedAt: 'desc' }, { createdAt: 'desc' }],
+    });
   }
 
   async findWithAnalysis(id: string) {

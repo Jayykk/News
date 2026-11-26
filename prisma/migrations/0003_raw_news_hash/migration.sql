@@ -1,0 +1,68 @@
+-- Align raw_news schema with deduplication support
+ALTER TABLE "RawNews" ADD COLUMN IF NOT EXISTS "collectedAt" TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE "RawNews" ADD COLUMN IF NOT EXISTS "language" TEXT;
+ALTER TABLE "RawNews" ADD COLUMN IF NOT EXISTS "symbolsRaw" TEXT[] DEFAULT '{}';
+ALTER TABLE "RawNews" ADD COLUMN IF NOT EXISTS "ingestStatus" TEXT DEFAULT 'ingested';
+ALTER TABLE "RawNews" ADD COLUMN IF NOT EXISTS "hash" TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS "RawNews_hash_key" ON "RawNews"("hash");
+
+-- Expand NewsAnalysis to match AI-driven fields
+ALTER TABLE "NewsAnalysis" ADD COLUMN IF NOT EXISTS "rawNewsId" UUID;
+ALTER TABLE "NewsAnalysis" ADD COLUMN IF NOT EXISTS "assets" JSONB;
+ALTER TABLE "NewsAnalysis" ADD COLUMN IF NOT EXISTS "eventType" TEXT;
+ALTER TABLE "NewsAnalysis" ADD COLUMN IF NOT EXISTS "isRumor" BOOLEAN;
+ALTER TABLE "NewsAnalysis" ADD COLUMN IF NOT EXISTS "isConfirmedByOfficial" BOOLEAN;
+ALTER TABLE "NewsAnalysis" ADD COLUMN IF NOT EXISTS "timeRelevance" TEXT;
+ALTER TABLE "NewsAnalysis" ADD COLUMN IF NOT EXISTS "priceDirectionHint" TEXT;
+ALTER TABLE "NewsAnalysis" ADD COLUMN IF NOT EXISTS "keyReasons" TEXT[] DEFAULT '{}';
+ALTER TABLE "NewsAnalysis" ADD COLUMN IF NOT EXISTS "rawConfidence" DOUBLE PRECISION;
+ALTER TABLE "NewsAnalysis" ADD COLUMN IF NOT EXISTS "veracityLevel" TEXT;
+ALTER TABLE "NewsAnalysis" ADD COLUMN IF NOT EXISTS "veracityConfidence" DOUBLE PRECISION;
+ALTER TABLE "NewsAnalysis" ADD COLUMN IF NOT EXISTS "impactPolarity" TEXT;
+ALTER TABLE "NewsAnalysis" ADD COLUMN IF NOT EXISTS "impactMagnitude" TEXT;
+ALTER TABLE "NewsAnalysis" ADD COLUMN IF NOT EXISTS "predictedDirection" TEXT;
+ALTER TABLE "NewsAnalysis" ADD COLUMN IF NOT EXISTS "predictedHorizon" TEXT;
+ALTER TABLE "NewsAnalysis" ADD COLUMN IF NOT EXISTS "predictedAbsMove1h" DOUBLE PRECISION;
+ALTER TABLE "NewsAnalysis" ADD COLUMN IF NOT EXISTS "aiModel" TEXT;
+ALTER TABLE "NewsAnalysis" ADD COLUMN IF NOT EXISTS "aiRaw" JSONB;
+ALTER TABLE "NewsAnalysis" ADD COLUMN IF NOT EXISTS "extra" JSONB;
+ALTER TABLE "NewsAnalysis" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE "NewsAnalysis" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW();
+CREATE UNIQUE INDEX IF NOT EXISTS "NewsAnalysis_rawNewsId_key" ON "NewsAnalysis"("rawNewsId");
+ALTER TABLE "NewsAnalysis" ADD CONSTRAINT IF NOT EXISTS "NewsAnalysis_rawNewsId_fkey" FOREIGN KEY ("rawNewsId") REFERENCES "RawNews"("id") ON DELETE CASCADE;
+
+-- Modernize signals table for impact scoring
+ALTER TABLE "Signal" ADD COLUMN IF NOT EXISTS "rawNewsId" UUID;
+ALTER TABLE "Signal" ADD COLUMN IF NOT EXISTS "impactScore" DOUBLE PRECISION;
+ALTER TABLE "Signal" ADD COLUMN IF NOT EXISTS "scoreBreakdown" JSONB;
+ALTER TABLE "Signal" ADD COLUMN IF NOT EXISTS "thresholdUsed" DOUBLE PRECISION;
+ALTER TABLE "Signal" ADD COLUMN IF NOT EXISTS "weightsUsed" JSONB;
+ALTER TABLE "Signal" ADD COLUMN IF NOT EXISTS "status" TEXT DEFAULT 'no_alert';
+ALTER TABLE "Signal" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE "Signal" ADD CONSTRAINT IF NOT EXISTS "Signal_rawNewsId_fkey" FOREIGN KEY ("rawNewsId") REFERENCES "RawNews"("id") ON DELETE CASCADE;
+ALTER TABLE "Signal" ADD CONSTRAINT IF NOT EXISTS "Signal_newsAnalysisId_fkey" FOREIGN KEY ("newsAnalysisId") REFERENCES "NewsAnalysis"("id") ON DELETE SET NULL;
+
+-- Align alerts table
+ALTER TABLE "Alert" ADD COLUMN IF NOT EXISTS "rawNewsId" UUID;
+ALTER TABLE "Alert" ADD COLUMN IF NOT EXISTS "newsAnalysisId" UUID;
+ALTER TABLE "Alert" ADD COLUMN IF NOT EXISTS "impactScore" DOUBLE PRECISION;
+ALTER TABLE "Alert" ADD COLUMN IF NOT EXISTS "severity" TEXT;
+ALTER TABLE "Alert" ADD COLUMN IF NOT EXISTS "summary" TEXT;
+ALTER TABLE "Alert" ADD COLUMN IF NOT EXISTS "disclaimer" TEXT;
+ALTER TABLE "Alert" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE "Alert" ADD CONSTRAINT IF NOT EXISTS "Alert_rawNewsId_fkey" FOREIGN KEY ("rawNewsId") REFERENCES "RawNews"("id") ON DELETE SET NULL;
+ALTER TABLE "Alert" ADD CONSTRAINT IF NOT EXISTS "Alert_newsAnalysisId_fkey" FOREIGN KEY ("newsAnalysisId") REFERENCES "NewsAnalysis"("id") ON DELETE SET NULL;
+
+-- Update signal configs to explicit weights/thresholds
+ALTER TABLE "SignalConfig" ADD COLUMN IF NOT EXISTS "weights" JSONB;
+ALTER TABLE "SignalConfig" ADD COLUMN IF NOT EXISTS "thresholds" JSONB;
+ALTER TABLE "SignalConfig" ADD COLUMN IF NOT EXISTS "isActive" BOOLEAN DEFAULT TRUE;
+
+-- Expand market snapshots for richer intraday metrics
+ALTER TABLE "MarketSnapshot" ADD COLUMN IF NOT EXISTS "assetType" TEXT;
+ALTER TABLE "MarketSnapshot" ADD COLUMN IF NOT EXISTS "priceNow" DECIMAL(18,6);
+ALTER TABLE "MarketSnapshot" ADD COLUMN IF NOT EXISTS "ret5m" DECIMAL(10,4);
+ALTER TABLE "MarketSnapshot" ADD COLUMN IF NOT EXISTS "ret1h" DECIMAL(10,4);
+ALTER TABLE "MarketSnapshot" ADD COLUMN IF NOT EXISTS "volumeRatio1h" DECIMAL(10,4);
+ALTER TABLE "MarketSnapshot" ADD COLUMN IF NOT EXISTS "volatilityRatio1h" DECIMAL(10,4);
+ALTER TABLE "MarketSnapshot" ADD COLUMN IF NOT EXISTS "collectedAt" TIMESTAMPTZ DEFAULT NOW();
